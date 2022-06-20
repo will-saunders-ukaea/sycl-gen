@@ -199,7 +199,7 @@ class Executor:
             for dx in dependency_mapper(expr.rhs):
                 process_dependency(dx)
 
-        lib_src = """
+        self.lib_src = """
         using namespace cl;
         using namespace cl::sycl;
         extern "C" int wrapper(
@@ -222,8 +222,8 @@ class Executor:
             EXPRESSIONS="\n".join(expressions),
             PARAMETERS=",\n".join([self.format_parameters(fx) for fx in self.parameters.items()]),
         )
-
-        self.lib = sycl.compiler(lib_header, lib_src)["wrapper"]
+        
+        self.lib = sycl.compiler(lib_header, self.lib_src)["wrapper"]
 
     def format_parameters(self, fx):
         ctype_map = {REAL: "double", INT: "int64_t"}
