@@ -39,9 +39,6 @@ fma = Executor(
     Assign(e[ix], a[ix] + b[ix])
 )
 
-print(fma.lib_src)
-
-
 fma()
 
 err = np.linalg.norm(d_array - correct_fma, np.inf)
