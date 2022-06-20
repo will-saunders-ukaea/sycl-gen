@@ -116,7 +116,7 @@ class SYCL:
 
         self.lib["gen_finalise"](ctypes.byref(self.device), ctypes.byref(self.queue))
 
-    def zeros_shared(self, shape, dtype):
+    def empty_shared(self, shape, dtype):
 
         if not issubclass(type(shape), Iterable):
             shape = (shape,)

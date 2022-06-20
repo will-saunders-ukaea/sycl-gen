@@ -9,11 +9,11 @@ syclcc = Compiler("syclcc", "--hipsycl-targets=cuda-nvcxx -O3 -fPIC -shared")
 sycl = SYCL(syclcc)
 
 N = 1024
-a_array = sycl.zeros_shared((N,), REAL)
-b_array = sycl.zeros_shared((N,), REAL)
-c_array = sycl.zeros_shared((N,), REAL)
-d_array = sycl.zeros_shared((N,), REAL)
-e_array = sycl.zeros_shared((N,), REAL)
+a_array = sycl.empty_shared((N,), REAL)
+b_array = sycl.empty_shared((N,), REAL)
+c_array = sycl.empty_shared((N,), REAL)
+d_array = sycl.empty_shared((N,), REAL)
+e_array = sycl.empty_shared((N,), REAL)
 
 
 a_array[:] = np.random.uniform(size=(N,))
