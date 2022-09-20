@@ -1,4 +1,5 @@
-from sycl_gen import *
+from galle.sycl import *
+from galle.gen_base import *
 
 import numpy as np
 
