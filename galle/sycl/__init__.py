@@ -11,7 +11,6 @@ from collections import OrderedDict
 import pymbolic as pmbl
 from pymbolic.mapper.c_code import CCodeMapper as CCM
 
-
 REAL = ctypes.c_double
 INT = ctypes.c_int64
 
@@ -136,3 +135,104 @@ class SYCL:
         ptr = ctypes.c_void_p(array.ctypes.data)
 
         self.lib["gen_sycl_free"](self.queue, ptr)
+
+
+class IterationSet:
+    pass
+
+
+class Range1D(IterationSet):
+    def __init__(self, n, name="_LOOP_INDEX"):
+        self.n = n
+        self.name = name
+
+    def get_loop_index(self):
+        return f"sycl::id<1> {self.name}"
+
+    def get_declaration_loop(self):
+        return "sycl::range<1>(_LOOP_EXTENT)"
+
+    def get_declaration_lib(self):
+        return "const int64_t _LOOP_EXTENT"
+
+    def get_call_args(self):
+        return ctypes.c_int64(self.n)
+
+
+class Kernel:
+    def __init__(self, ccode, cincludes=""):
+        self.ccode = ccode
+        self.cincludes = cincludes
+
+
+class KernelArg:
+    def __init__(self, obj, name):
+        self.obj = obj
+        self.name = name
+
+
+class ParallelFor:
+    def __init__(self, *args, **kwargs):
+        self.iteration_set = args[0]
+        self.args = args[1:-1]
+        self.kernel = args[-1]
+
+        assert issubclass(type(self.iteration_set), IterationSet)
+        assert issubclass(type(self.kernel), Kernel)
+
+        self.lib_header = (
+            """
+        #include <CL/sycl.hpp>
+        #include <iostream>
+        #include <cstdint>
+        """
+            + self.kernel.cincludes
+        )
+
+        self.generated_elements = {}
+        self._generate_parameters()
+        self._generate_iteration_set()
+        self._generate_iteration_index()
+        self._generate_kernel()
+
+        self.lib_src = """
+        using namespace cl;
+        using namespace cl::sycl;
+        extern "C" int wrapper(
+            sycl::queue *queue,
+            {PARAMETERS}
+        ){{
+              queue->submit([&](sycl::handler &cgh) {{
+               cgh.parallel_for<>({ITERATION_SET}, [=]({ITERATION_INDEX}) {{
+                {KERNEL}
+              }});
+            }}).wait();
+            return 0;
+        }}
+
+        """.format(
+            **self.generated_elements
+        )
+
+    def _generate_parameters(self):
+        p = [self.iteration_set.get_declaration_lib()]
+        ctype_map = {REAL: "double", INT: "int64_t"}
+        for argx in self.args:
+            assert issubclass(type(argx), KernelArg)
+            if issubclass(type(argx.obj), np.ndarray):
+                argp = "{CTYPE} * {NAME}".format(
+                    CTYPE=ctype_map[np.ctypeslib.as_ctypes_type(argx.obj.dtype)], NAME=argx.name
+                )
+            else:
+                argp = argx.obj.get_declaration_lib()
+            p.append(argp)
+        self.generated_elements["PARAMETERS"] = ",".join(p)
+
+    def _generate_iteration_set(self):
+        self.generated_elements["ITERATION_SET"] = self.iteration_set.get_declaration_loop()
+
+    def _generate_iteration_index(self):
+        self.generated_elements["ITERATION_INDEX"] = self.iteration_set.get_loop_index()
+
+    def _generate_kernel(self):
+        self.generated_elements["KERNEL"] = self.kernel.ccode

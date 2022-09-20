@@ -15,6 +15,9 @@ from pymbolic.mapper.c_code import CCodeMapper as CCM
 REAL = ctypes.c_double
 INT = ctypes.c_int64
 
+import galle.sycl
+from galle.sycl import *
+
 
 class KernelSymbol(pmbl.primitives.Variable):
 
@@ -33,6 +36,7 @@ class NDRange(pmbl.primitives.Variable):
     def __init__(self, n, name="idx"):
         super().__init__(name)
         self.gen_n = n
+        self.gen_iteration_set = Range1D(n, name)
 
 
 class Assign:
@@ -41,17 +45,10 @@ class Assign:
         self.rhs = rhs
         self.op = "="
 
-
 class Executor:
     def __init__(self, sycl, iteration_set, *exprs, **kwargs):
 
         self.sycl = sycl
-
-        lib_header = """
-        #include <CL/sycl.hpp>
-        #include <iostream>
-        #include <cstdint>
-        """
 
         dependency_mapper = pmbl.mapper.dependency.DependencyMapper(
             include_subscripts=False,
@@ -77,45 +74,20 @@ class Executor:
             for dx in dependency_mapper(expr.rhs):
                 process_dependency(dx)
 
-        self.lib_src = """
-        using namespace cl;
-        using namespace cl::sycl;
-        extern "C" int wrapper(
-            sycl::queue *queue,
-            {PARAMETERS}
-        ){{
-              queue->submit([&](sycl::handler &cgh) {{
-               cgh.parallel_for<>(sycl::range<1>({LOOP_EXTENT}), [=](sycl::id<1> {LOOP_INDEX}) {{
-                {EXPRESSIONS}
-              }});
-            }}).wait();
+        args = [
+            iteration_set.gen_iteration_set,
+        ]
+        for px in self.parameters.items():
+            args.append(KernelArg(px[1], px[0]))
+        args.append(Kernel("\n".join(expressions)))
 
-
-            return 0;
-        }}
-
-        """.format(
-            LOOP_EXTENT=str(iteration_set.gen_n),
-            LOOP_INDEX=iteration_set.name,
-            EXPRESSIONS="\n".join(expressions),
-            PARAMETERS=",\n".join([self.format_parameters(fx) for fx in self.parameters.items()]),
-        )
-        
-        self.lib = sycl.compiler(lib_header, self.lib_src)["wrapper"]
-
-    def format_parameters(self, fx):
-        ctype_map = {REAL: "double", INT: "int64_t"}
-
-        param = "{CTYPE} * {NAME}".format(CTYPE=ctype_map[np.ctypeslib.as_ctypes_type(fx[1].dtype)], NAME=fx[0])
-
-        return param
+        self.loop = ParallelFor(*args)
+        self.lib = sycl.compiler(self.loop.lib_header, self.loop.lib_src)["wrapper"]
 
     def get_argument(self, fx):
         return fx[1].ctypes.get_as_parameter()
 
     def __call__(self):
-        args = [
-            self.sycl.queue,
-        ]
+        args = [self.sycl.queue, self.loop.iteration_set.get_call_args()]
         args += [self.get_argument(fx) for fx in self.parameters.items()]
         self.lib(*args)

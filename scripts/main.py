@@ -4,8 +4,8 @@ from galle.gen_base import *
 import numpy as np
 
 
-# syclcc = Compiler("syclcc", "--hipsycl-targets=omp -O3 -fPIC -shared")
-syclcc = Compiler("syclcc", "--hipsycl-targets=cuda-nvcxx -O3 -fPIC -shared")
+syclcc = Compiler("syclcc", "--hipsycl-targets=omp -O3 -fPIC -shared")
+# syclcc = Compiler("syclcc", "--hipsycl-targets=cuda-nvcxx -O3 -fPIC -shared")
 
 sycl = SYCL(syclcc)
 
@@ -33,12 +33,7 @@ e = KernelSymbol(e_array)
 ix = NDRange(N)
 
 
-fma = Executor(
-    sycl, 
-    ix, 
-    Assign(d[ix], a[ix] * b[ix] + c[ix]),
-    Assign(e[ix], a[ix] + b[ix])
-)
+fma = Executor(sycl, ix, Assign(d[ix], a[ix] * b[ix] + c[ix]), Assign(e[ix], a[ix] + b[ix]))
 
 fma()
 
@@ -46,6 +41,24 @@ err = np.linalg.norm(d_array - correct_fma, np.inf)
 print("Infinity norm error fma:", err)
 err = np.linalg.norm(e_array - correct_add, np.inf)
 print("Infinity norm error add:", err)
+
+
+
+
+l = ParallelFor(
+    Range1D(N),
+    KernelArg(a_array, "a"),
+    KernelArg(b_array, "b"),
+    KernelArg(c_array, "c"),
+    KernelArg(d_array, "d"),
+    KernelArg(e_array, "e"),
+    Kernel("//kernel")
+)
+
+print(l.lib_src)
+
+
+
 
 sycl.free(a_array)
 sycl.free(b_array)
