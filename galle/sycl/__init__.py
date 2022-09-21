@@ -6,13 +6,6 @@ import subprocess
 import hashlib
 from functools import reduce
 from collections.abc import Iterable
-from collections import OrderedDict
-
-import pymbolic as pmbl
-from pymbolic.mapper.c_code import CCodeMapper as CCM
-
-REAL = ctypes.c_double
-INT = ctypes.c_int64
 
 
 class Compiler:
@@ -170,6 +163,9 @@ class KernelArg:
         self.obj = obj
         self.name = name
 
+    def get_declaration_lib(self):
+        return ""
+
 
 class ParallelFor:
     def __init__(self, *args, **kwargs):
@@ -216,15 +212,9 @@ class ParallelFor:
 
     def _generate_parameters(self):
         p = [self.iteration_set.get_declaration_lib()]
-        ctype_map = {REAL: "double", INT: "int64_t"}
         for argx in self.args:
             assert issubclass(type(argx), KernelArg)
-            if issubclass(type(argx.obj), np.ndarray):
-                argp = "{CTYPE} * {NAME}".format(
-                    CTYPE=ctype_map[np.ctypeslib.as_ctypes_type(argx.obj.dtype)], NAME=argx.name
-                )
-            else:
-                argp = argx.obj.get_declaration_lib()
+            argp = argx.get_declaration_lib()
             p.append(argp)
         self.generated_elements["PARAMETERS"] = ",".join(p)
 

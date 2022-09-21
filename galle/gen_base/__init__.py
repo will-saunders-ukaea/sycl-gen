@@ -45,6 +45,20 @@ class Assign:
         self.rhs = rhs
         self.op = "="
 
+
+ctype_map = {REAL: "double", INT: "int64_t"}
+
+
+class NumpyArg(KernelArg):
+    def __init__(self, obj, name):
+        self.obj = obj
+        self.name = name
+
+    def get_declaration_lib(self):
+        arg = "{CTYPE} * {NAME}".format(CTYPE=ctype_map[np.ctypeslib.as_ctypes_type(self.obj.dtype)], NAME=self.name)
+        return arg
+
+
 class Executor:
     def __init__(self, sycl, iteration_set, *exprs, **kwargs):
 
@@ -78,7 +92,7 @@ class Executor:
             iteration_set.gen_iteration_set,
         ]
         for px in self.parameters.items():
-            args.append(KernelArg(px[1], px[0]))
+            args.append(NumpyArg(px[1], px[0]))
         args.append(Kernel("\n".join(expressions)))
 
         self.loop = ParallelFor(*args)

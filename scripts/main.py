@@ -43,23 +43,6 @@ err = np.linalg.norm(e_array - correct_add, np.inf)
 print("Infinity norm error add:", err)
 
 
-
-
-l = ParallelFor(
-    Range1D(N),
-    KernelArg(a_array, "a"),
-    KernelArg(b_array, "b"),
-    KernelArg(c_array, "c"),
-    KernelArg(d_array, "d"),
-    KernelArg(e_array, "e"),
-    Kernel("//kernel")
-)
-
-print(l.lib_src)
-
-
-
-
 sycl.free(a_array)
 sycl.free(b_array)
 sycl.free(c_array)
