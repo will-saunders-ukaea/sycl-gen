@@ -1,6 +1,24 @@
 import ast
+import cgen
+from pymbolic.interop.ast import ASTToPymbolic
 
-class Visitor(ast.NodeVisitor):
+
+import pymbolic as pmbl
+class Foo(pmbl.primitives.Variable):
+    def __init__(self, obj, name=None):
+        pmbl.primitives.Variable.__init__(self, name)
+
+
+class GalleVisitor(ast.NodeVisitor):
+
+    def __init__(self, args, kernel_globals):
+        ast.NodeVisitor.__init__(self)
+
+        self.kernel_globals = kernel_globals
+        self.args = args
+        self.params_set = False
+        self.kernel_locals = {}
+        self.body_nodes = []
 
     def visit_Num(self, node):
         print(node)
@@ -47,8 +65,10 @@ class Visitor(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_Name(self, node):
-        print(node)
-        self.generic_visit(node)
+        return node.id
+
+    def visit_Constant(self, node):
+        return node.value
 
     def visit_Load(self, node):
         print(node)
@@ -90,25 +110,19 @@ class Visitor(ast.NodeVisitor):
         print(node)
         self.generic_visit(node)
 
-    def visit_BinOp(self, node):
-        print(node)
-        self.generic_visit(node)
+
 
     def visit_Add(self, node):
-        print(node)
-        self.generic_visit(node)
+        return "+"
 
     def visit_Sub(self, node):
-        print(node)
-        self.generic_visit(node)
+        return "-"
 
     def visit_Mult(self, node):
-        print(node)
-        self.generic_visit(node)
+        return "*"
 
     def visit_Div(self, node):
-        print(node)
-        self.generic_visit(node)
+        return "/"
 
     def visit_FloorDiv(self, node):
         print(node)
@@ -218,10 +232,6 @@ class Visitor(ast.NodeVisitor):
         print(node)
         self.generic_visit(node)
 
-    def visit_Subscript(self, node):
-        print(node)
-        self.generic_visit(node)
-
     def visit_Index(self, node):
         print(node)
         self.generic_visit(node)
@@ -256,7 +266,18 @@ class Visitor(ast.NodeVisitor):
 
     def visit_Assign(self, node):
         print(node)
-        self.generic_visit(node)
+        
+        if len(node.targets) > 1:
+            raise NotImplementedError("Cannot assign to multiple targets")
+
+        ast2p = ASTToPymbolic()
+        #lvalue = self.visit(node.targets[0])
+        #rvalue = eval(compile(ast.Expression(node.value), "", "eval"), self.kernel_globals, self.kernel_locals)
+        
+        lvalue = ast2p(node.targets[0])
+        rvalue = ast2p(node.value)
+
+        return cgen.Assign(lvalue, rvalue)
 
     def visit_AnnAssign(self, node):
         print(node)
@@ -343,8 +364,18 @@ class Visitor(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_FunctionDef(self, node):
-        print(node)
-        self.generic_visit(node)
+
+        # Build the map from the kernel symbols to the concrete type for this
+        # loop
+        if self.params_set:
+            raise RuntimeError("Cannot define functions in kernels")
+        self.params_set = True
+
+        for pi,px in enumerate(node.args.args):
+            self.kernel_locals[px.arg] = self.args[pi]
+
+        for nodex in node.body:
+            self.body_nodes.append(self.visit(nodex))
 
     def visit_Lambda(self, node):
         print(node)
