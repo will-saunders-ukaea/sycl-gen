@@ -21,9 +21,33 @@ class GalleVisitor(ast.NodeVisitor):
         self.kernel_locals = {}
         self.body_nodes = []
         self._ast2p = ASTToPymbolic()
+        self.scope = []
 
     def ast2p(self, node):
         return self._ast2p(node)
+
+    def scope_contains(self, key):
+        for levelx in self.scope:
+            if key in levelx:
+                return True
+        return False
+
+    def scope_add(self, key):
+        self.scope[-1].append(key)
+
+    def scope_push(self):
+        self.scope.append([])
+
+    def scope_pop(self):
+        self.scope.pop()
+
+    def get_name(self, node):
+
+        if issubclass(type(node), ast.Name):
+            return node.id
+        else:
+            assert issubclass(type(node), ast.Subscript)
+            return self.get_name(node.value)
 
     def visit_FunctionDef(self, node):
 
@@ -35,6 +59,7 @@ class GalleVisitor(ast.NodeVisitor):
 
         for pi, px in enumerate(node.args.args):
             self.kernel_locals[px.arg] = self.args[pi]
+        self.scope.append([kx for kx in self.kernel_locals.keys()])
 
         for nodex in node.body:
             self.body_nodes.append(self.visit(nodex))
@@ -47,9 +72,19 @@ class GalleVisitor(ast.NodeVisitor):
         lvalue = self.ast2p(node.targets[0])
         rvalue = self.ast2p(node.value)
 
-        return cgen.Assign(lvalue, rvalue)
+        target_symbol = self.get_name(node.targets[0])
+
+        if self.scope_contains(target_symbol):
+            return_node = cgen.Assign(lvalue, rvalue)
+        else:
+            self.scope_add(target_symbol)
+            return_node = cgen.Statement(f"auto {lvalue} = {rvalue}")
+
+        return return_node
 
     def visit_For(self, node):
+        self.scope_push()
+
         if not type(node.iter) is ast.Call:
             raise RuntimeError("For loop must be python range.")
         if not node.iter.func.id == "range":
@@ -82,6 +117,8 @@ class GalleVisitor(ast.NodeVisitor):
         update = cgen.Line(f"{loop_target}+={loop_inc}")
 
         for_loop = cgen.For(start, condition, update, cgen.Block(loop_body))
+
+        self.scope_pop()
         return for_loop
 
     def visit_Num(self, node):
