@@ -8,6 +8,7 @@ from galle.gen_ir.ast_cgen import *
 from galle.gen_particle.kernel_symbols import Variable
 
 from galle.gen_particle.kernel_symbols import *
+from galle.gen_particle.ast_transforms import *
 
 
 class ParticleIterator(Variable):
@@ -24,41 +25,6 @@ class ParticleLoop(ParticleIterator):
 
     def get_access(self):
         return [self.gen_loop_cell, self.gen_loop_layer]
-
-
-class ParticleDatReWrite(ast.NodeTransformer):
-    def __init__(self, kernel_args, kernel_globals):
-        ast.NodeTransformer.__init__(self)
-        self.kernel_args = kernel_args
-        self.kernel_globals = kernel_globals
-
-    def visit_Subscript(self, node):
-
-        symbol = node.value.id
-        if (symbol in self.kernel_args.keys()) and (issubclass(type(self.kernel_args[symbol]), ParticleSymbol)):
-
-            particle_index_symbol = node.slice.elts[0].id
-            particle_index = self.kernel_globals[particle_index_symbol]
-            cellx = particle_index.sym_loop_cell
-            layerx = particle_index.sym_loop_layer
-
-            component_index = node.slice.elts[1]
-
-            new_node = ast.Subscript(
-                value=ast.Subscript(
-                    value=ast.Subscript(
-                        value=ast.Name(id=symbol, ctx=ast.Load()),
-                        slice=ast.Name(id=cellx, ctx=ast.Load()),
-                        ctx=ast.Load(),
-                    ),
-                    slice=component_index,
-                    ctx=ast.Load(),
-                ),
-                slice=ast.Name(id=layerx, ctx=ast.Load()),
-                ctx=ast.Load(),
-            )
-
-        return ast.copy_location(new_node, node)
 
 
 class Loop:
@@ -79,9 +45,13 @@ class Loop:
         for vi, varx in enumerate(kernel_params):
             kernel_args[varx.arg] = self.args[vi]
 
+        # correct the ParticleDat access
         particle_dat_rewrite = ParticleDatReWrite(kernel_args, kernel_vars.globals)
-
         k_ast = particle_dat_rewrite.visit(k_ast)
+
+        # replace constants with values
+        constants_rewrite = ConstantReWrite(kernel_vars.globals)
+        k_ast = constants_rewrite.visit(k_ast)
 
         print(ast.dump(k_ast, indent=2))
 

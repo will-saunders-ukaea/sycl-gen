@@ -22,11 +22,11 @@ dt = 0.001
 
 
 
-
+ndim = Constant(2)
 
 def k(P,V):
-    P[px,0] = P[px, 0] + dt * V[px, 0]
-    P[px,1] = P[px, 1] + dt * V[px, 1]
+    for dimx in range(ndim):
+        P[px,dimx] = P[px, dimx] + dt * V[px, dimx]
 
 
 Loop(

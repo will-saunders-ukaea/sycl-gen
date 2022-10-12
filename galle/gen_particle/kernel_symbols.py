@@ -1,9 +1,11 @@
 import pymbolic as pmbl
 import cgen
 
+
 class KernelWritable:
     def reset_writes(self):
         self.gen_writes = {}
+
 
 class KernelReadable:
     def reset_reads(self):
@@ -13,9 +15,16 @@ class KernelReadable:
 class Variable(pmbl.primitives.Variable):
     pass
 
+
+class Constant:
+    def __init__(self, value):
+        self.value = value
+
+
 class KernelSymbol(pmbl.primitives.Variable):
     def __init__(self, obj, name=None):
         pmbl.primitives.Variable.__init__(self, name)
+
 
 class ParticleSymbol(KernelSymbol, KernelWritable, KernelReadable):
     def __init__(self, obj, name=None):
@@ -34,5 +43,3 @@ class ParticleSymbol(KernelSymbol, KernelWritable, KernelReadable):
         layerx = particle_loop.gen_loop_layer
         component = args[0][1]
         return self.get_access(self.name, cellx, layerx, component)
-
-
