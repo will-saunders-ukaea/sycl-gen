@@ -82,12 +82,7 @@ def get_dependencies(func):
         func_globals = inspect.getclosurevars(func).globals
         func_ast = ast.parse(inspect.getsource(func))
 
-    deps = {
-            "node": func,
-            "node_ast": func_ast,
-            "node_globals": func_globals,
-            "deps": {}
-    }
+    deps = {"node": func, "node_ast": func_ast, "node_globals": func_globals, "deps": {}}
     for gx in func_globals.items():
         deps["deps"][gx[0]] = get_dependencies(gx[1])
 
@@ -95,14 +90,14 @@ def get_dependencies(func):
 
 
 def function_rewrite_constants(deps):
-    
+
     for depx in deps["deps"].items():
         function_rewrite_constants(depx[1])
-    
+
     func = deps["node"]
     if is_rewriteable_func(func):
         func_globals = deps["node_globals"]
-        func_ast= deps["node_ast"]
+        func_ast = deps["node_ast"]
         constant_rewrite = ConstantReWrite(func_globals)
         func_new_ast = constant_rewrite.visit(func_ast)
         deps["node_ast"] = func_new_ast
@@ -122,7 +117,6 @@ def extract_function_def(nodes):
             return node
 
 
-
 class NameRenamer(ast.NodeTransformer):
     def __init__(self, call_args, names, output_scope):
         ast.NodeTransformer.__init__(self)
@@ -133,13 +127,12 @@ class NameRenamer(ast.NodeTransformer):
         self.return_name = None
 
     def visit_FunctionDef(self, node):
-        if (len(node.args.posonlyargs) != 0):
+        if len(node.args.posonlyargs) != 0:
             raise NotImplementedError("Position only args not implemented.")
-        if (len(node.args.kwonlyargs) != 0):
+        if len(node.args.kwonlyargs) != 0:
             raise NotImplementedError("Keyword args not implemented.")
-        if (len(node.args.defaults) != 0):
+        if len(node.args.defaults) != 0:
             raise NotImplementedError("Default args not implemented.")
-
 
         for parami, paramx in enumerate(node.args.args):
             internal_name = self.name_generator(paramx.arg)
@@ -147,17 +140,17 @@ class NameRenamer(ast.NodeTransformer):
             self.output_scope.add_node(
                 ast.copy_location(
                     ast.Assign(targets=[ast.Name(id=internal_name, ctx=ast.Store())], value=self.call_args[parami]),
-                    node
+                    node,
                 )
             )
-        
+
         for bx in node.body:
             n = self.visit(bx)
             if n is not None:
                 self.output_scope.add_node(n)
 
     def visit_Name(self, node):
-        
+
         if node.id in self.name_map.keys():
             new_node = copy.deepcopy(node)
             new_node.id = self.name_map[node.id]
@@ -167,10 +160,7 @@ class NameRenamer(ast.NodeTransformer):
             new_node.id = new_id
             self.name_map[node.id] = new_id
 
-        return ast.copy_location(
-            new_node,
-            node
-        )
+        return ast.copy_location(new_node, node)
 
     def visit_Return(self, node):
         self.return_name = self.visit(node.value)
@@ -184,7 +174,7 @@ class FunctionInline(ast.NodeTransformer):
         self.scope = Scope()
 
         self.name_generator = None
-    
+
     def visit(self, node):
         self.name_generator = UniqueNamesGenerator(get_exising_names(node))
         return super().visit(node)
@@ -207,48 +197,32 @@ class FunctionInline(ast.NodeTransformer):
 
         # find the corresponding ast for the call
         function_name = node.func.id
-        function_ast = extract_function_def(self.func_deps[function_name]["node_ast"])
 
-        call_args = node.args
+        if function_name in self.func_deps.keys():
+            function_ast = extract_function_def(self.func_deps[function_name]["node_ast"])
 
-        name_renamer = NameRenamer(call_args, self.name_generator.names, self.scope)
-        name_renamer.visit(function_ast)
-        self.name_generator.add(name_renamer.name_generator.names)
-        
-        return_name = name_renamer.return_name
-        if return_name is None:
-            raise RuntimeError("Inlined function did not return a value.")
-        new_node = ast.copy_location(
-            return_name,
-            node
-        )
+            call_args = node.args
 
-        return new_node
+            name_renamer = NameRenamer(call_args, self.name_generator.names, self.scope)
+            name_renamer.visit(function_ast)
+            self.name_generator.add(name_renamer.name_generator.names)
+
+            return_name = name_renamer.return_name
+            if return_name is None:
+                raise RuntimeError("Inlined function did not return a value.")
+            new_node = ast.copy_location(return_name, node)
+
+            return new_node
+        else:
+            return node
 
 
 def inline_functions(deps):
     for depx in deps["deps"].items():
         inline_functions(depx[1])
-    
+
     func = deps["node"]
     if is_rewriteable_func(func):
         function_inline = FunctionInline(deps["deps"])
         new_ast = function_inline.visit(deps["node_ast"])
         deps["node_ast"] = new_ast
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

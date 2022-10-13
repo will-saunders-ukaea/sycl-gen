@@ -1,12 +1,11 @@
-
 class Scope:
     def __init__(self):
         self.stack = []
         self.stack_nodes = []
-    
+
     def add(self, key):
         self.stack[-1].append(key)
- 
+
     def add_node(self, node):
         self.stack_nodes[-1].append(node)
 
@@ -34,7 +33,6 @@ class UniqueNamesGenerator:
         self.counter = 0
 
     def __call__(self, basename="l"):
-
         def next_name():
             proposed_name = f"{basename}_{self.counter}"
             self.counter += 1

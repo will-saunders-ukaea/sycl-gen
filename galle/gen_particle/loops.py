@@ -41,15 +41,12 @@ class Loop:
 
         kernel_params = k_ast.body[0].args.args
 
-        if(len(kernel_params) != len(self.args)):
-            raise RuntimeError(
-                "Number of kernel arguments does not match number of loop arguments."
-            )
+        if len(kernel_params) != len(self.args):
+            raise RuntimeError("Number of kernel arguments does not match number of loop arguments.")
 
         print(kernel_vars.globals)
-            
-        deps = get_dependencies(self.kernel)
 
+        deps = get_dependencies(self.kernel)
 
         kernel_args = {}
         for vi, varx in enumerate(kernel_params):
@@ -63,8 +60,8 @@ class Loop:
         print("-" * 60)
         inline_functions(deps)
 
-        #print(ast.dump(deps["node_ast"], indent=2))
-        
+        # print(ast.dump(deps["node_ast"], indent=2))
+
         visitor = GalleVisitor(self.args, deps["node_globals"])
         visitor.visit(deps["node_ast"])
 

@@ -106,7 +106,7 @@ class GalleVisitor(ast.NodeVisitor):
         return for_loop
 
     def visit_If(self, node):
-        
+
         condition = self.ast2p(node.test)
         self.scope.push()
         block = [self.visit(nodex) for nodex in node.body]

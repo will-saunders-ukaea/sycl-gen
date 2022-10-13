@@ -56,7 +56,8 @@ def foo(x,y):
 
 def k_call(P, V):
     a = 1
-    b = foo(P[px,1], V[px,0])
+    for dimx in range(2):
+        V[px, dimx] = foo(P[px, dimx], V[px, dimx])
     #P[px, 1] = 1 + bar(V[px, 2])
     #a,b = foo(P[px,1], V[px,0])
     #c,d = x,y
