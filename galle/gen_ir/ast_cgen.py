@@ -1,28 +1,10 @@
 import ast
 import cgen
 from pymbolic.interop.ast import ASTToPymbolic
-
-
 import pymbolic as pmbl
 
-class Scope:
-    def __init__(self):
-        self.stack = []
-    
-    def add(self, key):
-        self.stack[-1].append(key)
-    
-    def push(self):
-        self.stack.append([])
+from galle.gen_ir.scope import *
 
-    def pop(self):
-        self.stack.pop()
-
-    def contains(self, key):
-        for levelx in self.stack:
-            if key in levelx:
-                return True
-        return False
 
 class GalleVisitor(ast.NodeVisitor):
     def __init__(self, args, kernel_globals):
@@ -126,8 +108,12 @@ class GalleVisitor(ast.NodeVisitor):
     def visit_If(self, node):
         
         condition = self.ast2p(node.test)
+        self.scope.push()
         block = [self.visit(nodex) for nodex in node.body]
+        self.scope.pop()
+        self.scope.push()
         block_else = [self.visit(nodex) for nodex in node.orelse]
+        self.scope.pop()
 
         return cgen.If(condition, cgen.Block(block), cgen.Block(block_else))
 

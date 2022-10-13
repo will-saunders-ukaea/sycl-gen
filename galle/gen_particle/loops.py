@@ -60,10 +60,11 @@ class Loop:
         deps["func_ast"] = particle_dat_rewrite.visit(deps["node_ast"])
 
         function_rewrite_constants(deps)
+        print("-" * 60)
+        inline_functions(deps)
 
-
-        print(ast.dump(deps["node_ast"], indent=2))
-
+        #print(ast.dump(deps["node_ast"], indent=2))
+        
         visitor = GalleVisitor(self.args, deps["node_globals"])
         visitor.visit(deps["node_ast"])
 
