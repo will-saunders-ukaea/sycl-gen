@@ -41,24 +41,31 @@ class Loop:
 
         kernel_params = k_ast.body[0].args.args
 
+        if(len(kernel_params) != len(self.args)):
+            raise RuntimeError(
+                "Number of kernel arguments does not match number of loop arguments."
+            )
+
         print(kernel_vars.globals)
+            
+        deps = get_dependencies(self.kernel)
+
 
         kernel_args = {}
         for vi, varx in enumerate(kernel_params):
             kernel_args[varx.arg] = self.args[vi]
 
         # correct the ParticleDat access
-        particle_dat_rewrite = ParticleDatReWrite(kernel_args, kernel_vars.globals)
-        k_ast = particle_dat_rewrite.visit(k_ast)
+        particle_dat_rewrite = ParticleDatReWrite(kernel_args, deps["node_globals"])
+        deps["func_ast"] = particle_dat_rewrite.visit(deps["node_ast"])
 
-        # replace constants with values
-        constants_rewrite = ConstantReWrite(kernel_vars.globals)
-        k_ast = constants_rewrite.visit(k_ast)
+        function_rewrite_constants(deps)
 
-        print(ast.dump(k_ast, indent=2))
 
-        visitor = GalleVisitor(self.args, kernel_vars.globals)
-        visitor.visit(k_ast)
+        print(ast.dump(deps["node_ast"], indent=2))
+
+        visitor = GalleVisitor(self.args, deps["node_globals"])
+        visitor.visit(deps["node_ast"])
 
         for nx in visitor.body_nodes:
             print(nx)

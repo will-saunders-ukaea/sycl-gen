@@ -43,9 +43,29 @@ def k_conditional(P, V):
         P[px, 2] = 2
 
 
+
+four_two = 42
+def bar(x):
+    return x + four_two
+
+def foo(x,y):
+    return x+1, bar(y)+2
+
+
+
+
+
+def k_call(P, V):
+    P[px, 1] = dt
+    #P[px, 1] = 1 + bar(V[px, 2])
+    a,b = foo(P[px,1], V[px,0])
+    #c,d = x,y
+
+
 Loop(
     # k,
     k_conditional,
+    #k_call,
     P,
     V,
 )
