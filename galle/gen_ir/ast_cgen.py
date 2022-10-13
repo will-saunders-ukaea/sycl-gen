@@ -5,11 +5,24 @@ from pymbolic.interop.ast import ASTToPymbolic
 
 import pymbolic as pmbl
 
+class Scope:
+    def __init__(self):
+        self.stack = []
+    
+    def add(self, key):
+        self.stack[-1].append(key)
+    
+    def push(self):
+        self.stack.append([])
 
-class Foo(pmbl.primitives.Variable):
-    def __init__(self, obj, name=None):
-        pmbl.primitives.Variable.__init__(self, name)
+    def pop(self):
+        self.stack.pop()
 
+    def contains(self, key):
+        for levelx in self.stack:
+            if key in levelx:
+                return True
+        return False
 
 class GalleVisitor(ast.NodeVisitor):
     def __init__(self, args, kernel_globals):
@@ -21,25 +34,10 @@ class GalleVisitor(ast.NodeVisitor):
         self.kernel_locals = {}
         self.body_nodes = []
         self._ast2p = ASTToPymbolic()
-        self.scope = []
+        self.scope = Scope()
 
     def ast2p(self, node):
         return self._ast2p(node)
-
-    def scope_contains(self, key):
-        for levelx in self.scope:
-            if key in levelx:
-                return True
-        return False
-
-    def scope_add(self, key):
-        self.scope[-1].append(key)
-
-    def scope_push(self):
-        self.scope.append([])
-
-    def scope_pop(self):
-        self.scope.pop()
 
     def get_name(self, node):
 
@@ -50,6 +48,7 @@ class GalleVisitor(ast.NodeVisitor):
             return self.get_name(node.value)
 
     def visit_FunctionDef(self, node):
+        self.scope.push()
 
         # Build the map from the kernel symbols to the concrete type for this
         # loop
@@ -59,10 +58,13 @@ class GalleVisitor(ast.NodeVisitor):
 
         for pi, px in enumerate(node.args.args):
             self.kernel_locals[px.arg] = self.args[pi]
-        self.scope.append([kx for kx in self.kernel_locals.keys()])
+        for kx in self.kernel_locals.keys():
+            self.scope.add(kx)
 
         for nodex in node.body:
             self.body_nodes.append(self.visit(nodex))
+
+        self.scope.pop()
 
     def visit_Assign(self, node):
 
@@ -74,16 +76,16 @@ class GalleVisitor(ast.NodeVisitor):
 
         target_symbol = self.get_name(node.targets[0])
 
-        if self.scope_contains(target_symbol):
+        if self.scope.contains(target_symbol):
             return_node = cgen.Assign(lvalue, rvalue)
         else:
-            self.scope_add(target_symbol)
+            self.scope.add(target_symbol)
             return_node = cgen.Statement(f"auto {lvalue} = {rvalue}")
 
         return return_node
 
     def visit_For(self, node):
-        self.scope_push()
+        self.scope.push()
 
         if not type(node.iter) is ast.Call:
             raise RuntimeError("For loop must be python range.")
@@ -118,8 +120,16 @@ class GalleVisitor(ast.NodeVisitor):
 
         for_loop = cgen.For(start, condition, update, cgen.Block(loop_body))
 
-        self.scope_pop()
+        self.scope.pop()
         return for_loop
+
+    def visit_If(self, node):
+        
+        condition = self.ast2p(node.test)
+        block = [self.visit(nodex) for nodex in node.body]
+        block_else = [self.visit(nodex) for nodex in node.orelse]
+
+        return cgen.If(condition, cgen.Block(block), cgen.Block(block_else))
 
     def visit_Num(self, node):
         raise RuntimeError("Bad construct in kernel.")
@@ -338,9 +348,6 @@ class GalleVisitor(ast.NodeVisitor):
         raise RuntimeError("Bad construct in kernel.")
 
     def visit_alias(self, node):
-        raise RuntimeError("Bad construct in kernel.")
-
-    def visit_If(self, node):
         raise RuntimeError("Bad construct in kernel.")
 
     def visit_While(self, node):

@@ -41,6 +41,8 @@ class Loop:
 
         kernel_params = k_ast.body[0].args.args
 
+        print(kernel_vars.globals)
+
         kernel_args = {}
         for vi, varx in enumerate(kernel_params):
             kernel_args[varx.arg] = self.args[vi]
