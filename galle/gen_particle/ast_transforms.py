@@ -193,6 +193,12 @@ class FunctionInline(ast.NodeTransformer):
     def visit_FunctionDef(self, node):
         return self.generic_visit_child_nodes(node)
 
+    def visit_If(self, node):
+        return self.generic_visit_child_nodes(node)
+
+    def visit_For(self, node):
+        return self.generic_visit_child_nodes(node)
+
     def visit_Call(self, node):
 
         # find the corresponding ast for the call
