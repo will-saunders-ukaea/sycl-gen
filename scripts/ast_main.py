@@ -45,20 +45,21 @@ def k_conditional(P, V):
 
 
 four_two = 42
+
+@kernel_inline
 def bar(x):
     x = x * 2
     return x + four_two
 
+@kernel_inline
 def foo(x,y):
     return bar(y) + x
 
-
-
+@kernel
 def k_call(P, V):
-    a = 1
     for dimx in range(2):
         V[px, dimx] = foo(P[px, dimx], V[px, dimx])
-    #P[px, 1] = 1 + bar(V[px, 2])
+    P[px, 1] = 1 + bar(V[px, 2])
     #a,b = foo(P[px,1], V[px,0])
     #c,d = x,y
 

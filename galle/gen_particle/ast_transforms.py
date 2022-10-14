@@ -13,6 +13,9 @@ from galle.gen_ir.scope import *
 class ParticleDatReWrite(ast.NodeTransformer):
     def __init__(self, kernel_args, kernel_globals):
         ast.NodeTransformer.__init__(self)
+
+        assert type(kernel_globals) == dict
+
         self.kernel_args = kernel_args
         self.kernel_globals = kernel_globals
 
@@ -71,7 +74,7 @@ class ConstantReWrite(ast.NodeTransformer):
 
 
 def is_rewriteable_func(func):
-    return issubclass(type(func), Callable) and not issubclass(type(func), pmbl.primitives.Variable)
+    return issubclass(type(func), KernelFunction)
 
 
 def get_dependencies(func):
@@ -79,8 +82,8 @@ def get_dependencies(func):
     func_globals = {}
     func_ast = None
     if is_rewriteable_func(func):
-        func_globals = inspect.getclosurevars(func).globals
-        func_ast = ast.parse(inspect.getsource(func))
+        func_globals = func.globals
+        func_ast = func.ast
 
     deps = {"node": func, "node_ast": func_ast, "node_globals": func_globals, "deps": {}}
     for gx in func_globals.items():

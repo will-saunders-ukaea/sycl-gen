@@ -1,3 +1,6 @@
+import inspect
+import ast
+
 import pymbolic as pmbl
 import cgen
 
@@ -43,3 +46,18 @@ class ParticleSymbol(KernelSymbol, KernelWritable, KernelReadable):
         layerx = particle_loop.gen_loop_layer
         component = args[0][1]
         return self.get_access(self.name, cellx, layerx, component)
+
+
+class KernelFunction:
+    def __init__(self, func):
+        self.func = func
+        self.globals = inspect.getclosurevars(func).globals
+        self.ast = ast.parse(inspect.getsource(func))
+
+
+def kernel_inline(func):
+    return KernelFunction(func)
+
+
+def kernel(func):
+    return KernelFunction(func)

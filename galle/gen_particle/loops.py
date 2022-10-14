@@ -36,18 +36,13 @@ class Loop:
         print(self.kernel)
         print(self.args)
 
-        kernel_vars = inspect.getclosurevars(self.kernel)
-        k_ast = ast.parse(inspect.getsource(self.kernel))
-
+        k_ast = self.kernel.ast
         kernel_params = k_ast.body[0].args.args
 
         if len(kernel_params) != len(self.args):
             raise RuntimeError("Number of kernel arguments does not match number of loop arguments.")
 
-        print(kernel_vars.globals)
-
         deps = get_dependencies(self.kernel)
-
         kernel_args = {}
         for vi, varx in enumerate(kernel_params):
             kernel_args[varx.arg] = self.args[vi]
