@@ -4,6 +4,7 @@ from pymbolic.interop.ast import ASTToPymbolic
 import pymbolic as pmbl
 
 from galle.gen_ir.scope import *
+from galle.gen_particle.kernel_symbols import *
 
 
 class GalleVisitor(ast.NodeVisitor):
@@ -43,6 +44,13 @@ class GalleVisitor(ast.NodeVisitor):
         for kx in self.kernel_locals.keys():
             self.scope.add(kx)
 
+        for argx in self.kernel_locals.items():
+            symbol = argx[0]
+            obj = argx[1]
+
+            if issubclass(type(obj), LocalArray):
+                self.scope.add_node(cgen.Value(str(obj.dtype), f"{symbol}[{obj.ncomp}]"))
+
         for nodex in node.body:
             self.scope.add_node(self.visit(nodex))
 
@@ -57,7 +65,7 @@ class GalleVisitor(ast.NodeVisitor):
         def create_node(target, value):
             lvalue = self.ast2p(target)
             rvalue = self.ast2p(value)
-            
+
             target_symbol = self.get_name(target)
 
             if self.scope.contains(target_symbol):
@@ -74,8 +82,6 @@ class GalleVisitor(ast.NodeVisitor):
             return create_node(target, value)
 
         else:
-            print(ast.dump(node, indent=2))
-
             nodes = []
             for targetx, valuex in zip(node.targets[0].elts, node.value.elts):
                 nodes.append(create_node(targetx, valuex))
@@ -83,7 +89,6 @@ class GalleVisitor(ast.NodeVisitor):
             for nx in nodes[:-1]:
                 self.scope.add_node(nx)
             return nodes[-1]
-
 
     def visit_For(self, node):
         self.scope.push()

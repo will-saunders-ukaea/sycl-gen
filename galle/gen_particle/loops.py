@@ -33,9 +33,6 @@ class Loop:
         self.kernel = args[0]
         self.args = args[1:]
 
-        print(self.kernel)
-        print(self.args)
-
         k_ast = self.kernel.ast
         kernel_params = k_ast.body[0].args.args
 
@@ -52,7 +49,6 @@ class Loop:
         deps["func_ast"] = particle_dat_rewrite.visit(deps["node_ast"])
 
         function_rewrite_constants(deps)
-        print("-" * 60)
         inline_functions(deps)
 
         # print(ast.dump(deps["node_ast"], indent=2))

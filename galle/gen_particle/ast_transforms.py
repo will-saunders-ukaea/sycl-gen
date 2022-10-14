@@ -120,7 +120,7 @@ def extract_function_def(nodes):
             return node
 
 
-class NameRenamer(ast.NodeTransformer):
+class InlinerNameRenamer(ast.NodeTransformer):
     def __init__(self, call_args, names, output_scope):
         ast.NodeTransformer.__init__(self)
         self.call_args = call_args
@@ -207,12 +207,12 @@ class FunctionInline(ast.NodeTransformer):
         # find the corresponding ast for the call
         function_name = node.func.id
 
-        if function_name in self.func_deps.keys():
+        if function_name in self.func_deps.keys() and self.func_deps[function_name]["node_ast"] is not None:
             function_ast = extract_function_def(self.func_deps[function_name]["node_ast"])
 
             call_args = node.args
 
-            name_renamer = NameRenamer(call_args, self.name_generator.names, self.scope)
+            name_renamer = InlinerNameRenamer(call_args, self.name_generator.names, self.scope)
             name_renamer.visit(function_ast)
             self.name_generator.add(name_renamer.name_generator.names)
 

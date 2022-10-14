@@ -48,6 +48,15 @@ class ParticleSymbol(KernelSymbol, KernelWritable, KernelReadable):
         return self.get_access(self.name, cellx, layerx, component)
 
 
+class LocalArray:
+    def __init__(self, ncomp, dtype="REAL"):
+        self.ncomp = ncomp
+        self.dtype = dtype
+
+    def rename(self, name):
+        self.name = name
+
+
 class KernelFunction:
     def __init__(self, func):
         self.func = func
