@@ -55,13 +55,20 @@ def bar(x):
 def foo(x,y):
     return bar(y) + x
 
+@kernel_inline
+def branch(x):
+    if x < 1:
+        return 1
+    else:
+        return 2
+
+
+
 @kernel
 def k_call(P, V):
-    for dimx in range(2):
-        V[px, dimx] = foo(P[px, dimx], V[px, dimx])
-    P[px, 1] = 1 + bar(V[px, 2])
-    #a,b = foo(P[px,1], V[px,0])
-    #c,d = x,y
+    
+    P[px,1] = branch(V[px, 2])
+
 
 
 Loop(

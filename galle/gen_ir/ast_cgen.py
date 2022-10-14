@@ -44,27 +44,46 @@ class GalleVisitor(ast.NodeVisitor):
             self.scope.add(kx)
 
         for nodex in node.body:
-            self.body_nodes.append(self.visit(nodex))
+            self.scope.add_node(self.visit(nodex))
+
+        self.body_nodes = self.scope.stack_nodes[0]
 
         self.scope.pop()
 
     def visit_Assign(self, node):
 
-        if len(node.targets) > 1:
-            raise NotImplementedError("Cannot assign to multiple targets")
+        assert len(node.targets) == 1
 
-        lvalue = self.ast2p(node.targets[0])
-        rvalue = self.ast2p(node.value)
+        def create_node(target, value):
+            lvalue = self.ast2p(target)
+            rvalue = self.ast2p(value)
+            
+            target_symbol = self.get_name(target)
 
-        target_symbol = self.get_name(node.targets[0])
+            if self.scope.contains(target_symbol):
+                return_node = cgen.Assign(lvalue, rvalue)
+            else:
+                self.scope.add(target_symbol)
+                return_node = cgen.Statement(f"auto {lvalue} = {rvalue}")
 
-        if self.scope.contains(target_symbol):
-            return_node = cgen.Assign(lvalue, rvalue)
+            return return_node
+
+        if not issubclass(type(node.targets[0]), ast.Tuple):
+            target = node.targets[0]
+            value = node.value
+            return create_node(target, value)
+
         else:
-            self.scope.add(target_symbol)
-            return_node = cgen.Statement(f"auto {lvalue} = {rvalue}")
+            print(ast.dump(node, indent=2))
 
-        return return_node
+            nodes = []
+            for targetx, valuex in zip(node.targets[0].elts, node.value.elts):
+                nodes.append(create_node(targetx, valuex))
+
+            for nx in nodes[:-1]:
+                self.scope.add_node(nx)
+            return nodes[-1]
+
 
     def visit_For(self, node):
         self.scope.push()
@@ -92,15 +111,14 @@ class GalleVisitor(ast.NodeVisitor):
 
         loop_target = node.target.id
 
-        loop_body = []
         for nx in node.body:
-            loop_body.append(self.visit(nx))
+            self.scope.add_node(self.visit(nx))
 
         start = cgen.Line(f"int {loop_target} = {loop_start}")
         condition = cgen.Line(f"{loop_target} < {loop_end}")
         update = cgen.Line(f"{loop_target}+={loop_inc}")
 
-        for_loop = cgen.For(start, condition, update, cgen.Block(loop_body))
+        for_loop = cgen.For(start, condition, update, cgen.Block(self.scope.get_nodes()))
 
         self.scope.pop()
         return for_loop
@@ -109,10 +127,14 @@ class GalleVisitor(ast.NodeVisitor):
 
         condition = self.ast2p(node.test)
         self.scope.push()
-        block = [self.visit(nodex) for nodex in node.body]
+        for nodex in node.body:
+            self.scope.add_node(self.visit(nodex))
+        block = self.scope.get_nodes()
         self.scope.pop()
         self.scope.push()
-        block_else = [self.visit(nodex) for nodex in node.orelse]
+        for nodex in node.orelse:
+            self.scope.add_node(self.visit(nodex))
+            block_else = self.scope.get_nodes()
         self.scope.pop()
 
         return cgen.If(condition, cgen.Block(block), cgen.Block(block_else))
