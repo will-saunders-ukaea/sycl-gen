@@ -16,8 +16,6 @@ B = ParticleSymbol(None, "B")
 E = ParticleSymbol(None, "E")
 dt = 0.001
 
-ndim = Constant(2)
-
 
 @kernel_inline
 def cross_product_3d(a1, a2, a3, b1, b2, b3):
@@ -48,7 +46,7 @@ def k_boris(V, B, E, t, s, V_minus, V_prime, V_plus):
     for dimx in range(3):
         t[dimx] = B[px, dimx] * scaling_t
 
-    tmagsq = l2_squared_3d(t0, t1, t2)
+    tmagsq = l2_squared_3d(t[0], t[1], t[2])
     scaling_s = 2.0 / (1.0 + tmagsq)
 
     for dimx in range(3):
