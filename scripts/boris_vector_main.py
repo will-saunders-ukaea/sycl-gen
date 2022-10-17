@@ -8,14 +8,6 @@ import numpy as np
 import inspect
 import ast
 
-px = ParticleLoop()
-
-P = ParticleSymbol(None, "P")
-V = ParticleSymbol(None, "V")
-B = ParticleSymbol(None, "B")
-E = ParticleSymbol(None, "E")
-dt = 0.001
-
 
 @kernel_inline
 def cross_product_3d(a1, a2, a3, b1, b2, b3):
@@ -24,23 +16,41 @@ def cross_product_3d(a1, a2, a3, b1, b2, b3):
     c3 = (a1 * b2) - (a2 * b1)
     return c1, c2, c3
 
-
 @kernel_inline
 def dot_product_3d(a1, a2, a3, b1, b2, b3):
     return (a1 * b1) + (a2 * b2) + (a3 * b3)
-
 
 @kernel_inline
 def l2_squared_3d(a1, a2, a3):
     return dot_product_3d(a1, a2, a3, a1, a2, a3)
 
-
+dt = 0.001
+ndim = 2
 q = Constant(1.0)
 m = Constant(1.0)
 
+px = ParticleLoop()
+
+P = ParticleSymbol(None, "P")
+V = ParticleSymbol(None, "V")
+B = ParticleSymbol(None, "B")
+E = ParticleSymbol(None, "E")
 
 @kernel
-def k_boris(V, B, E, t, s, V_minus, V_prime, V_plus):
+def k_advect(P, V):
+    for dimx in range(ndim):
+        P[px, dimx] = P[px, dimx] + dt * V[px, dimx]
+
+Loop(
+    k_advect,
+    P,
+    V
+)
+
+print(120 * "-")
+
+@kernel
+def k_boris(V, B, E, t, s, v_minus, v_prime, v_plus):
 
     scaling_t = (q / m) * 0.5 * dt
     for dimx in range(3):

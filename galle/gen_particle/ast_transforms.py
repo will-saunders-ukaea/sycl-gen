@@ -117,7 +117,7 @@ def get_exising_names(kernel_ast):
 def extract_function_def(nodes):
     for node in ast.walk(nodes):
         if isinstance(node, ast.FunctionDef):
-            return node
+            return copy.deepcopy(node)
 
 
 class InlinerNameRenamer(ast.NodeTransformer):
@@ -128,6 +128,10 @@ class InlinerNameRenamer(ast.NodeTransformer):
         self.name_map = {}
         self.output_scope = output_scope
         self.return_name = None
+
+    def visit(self, node):
+        self.name_generator.add(get_exising_names(node))
+        return super().visit(node)
 
     def visit_FunctionDef(self, node):
         if len(node.args.posonlyargs) != 0:
@@ -142,7 +146,10 @@ class InlinerNameRenamer(ast.NodeTransformer):
             self.name_map[paramx.arg] = internal_name
             self.output_scope.add_node(
                 ast.copy_location(
-                    ast.Assign(targets=[ast.Name(id=internal_name, ctx=ast.Store())], value=self.call_args[parami]),
+                    ast.Assign(
+                        targets=[ast.Name(id=internal_name, ctx=ast.Store())], 
+                        value=self.call_args[parami]
+                    ),
                     node,
                 )
             )
@@ -171,15 +178,14 @@ class InlinerNameRenamer(ast.NodeTransformer):
 
 
 class FunctionInline(ast.NodeTransformer):
-    def __init__(self, func_deps):
+    def __init__(self, func_deps, existing_names=set()):
         ast.NodeTransformer.__init__(self)
         self.func_deps = func_deps
         self.scope = Scope()
-
-        self.name_generator = None
+        self.name_generator = UniqueNamesGenerator(existing_names)
 
     def visit(self, node):
-        self.name_generator = UniqueNamesGenerator(get_exising_names(node))
+        self.name_generator.add(get_exising_names(node))
         return super().visit(node)
 
     def generic_visit_child_nodes(self, node):
@@ -227,11 +233,19 @@ class FunctionInline(ast.NodeTransformer):
 
 
 def inline_functions(deps):
+
+    existing_names = set()
     for depx in deps["deps"].items():
-        inline_functions(depx[1])
+        existing_names.union(inline_functions(depx[1]))
 
     func = deps["node"]
     if is_rewriteable_func(func):
-        function_inline = FunctionInline(deps["deps"])
+        function_inline = FunctionInline(deps["deps"], existing_names)
         new_ast = function_inline.visit(deps["node_ast"])
         deps["node_ast"] = new_ast
+        existing_names.union(function_inline.name_generator.names)
+        
+    return existing_names
+
+
+

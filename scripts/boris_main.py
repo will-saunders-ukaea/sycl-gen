@@ -59,7 +59,7 @@ def k_boris(V, B, E):
     V_minus_0 = V[px, 0] + E[px, 0] * scaling_t
     V_minus_1 = V[px, 1] + E[px, 1] * scaling_t
     V_minus_2 = V[px, 2] + E[px, 2] * scaling_t
-
+    
     v_prime_0, v_prime_1, v_prime_2 = cross_product_3d(v_minus_0, v_minus_1, v_minus_2, t0, t1, t2)
 
     v_prime_0 = v_prime_0 + v_minus_0
