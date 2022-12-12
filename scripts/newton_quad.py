@@ -29,10 +29,10 @@ v31 = p.Variable("v31")
 
 
 
-x0p1 = p.CommonSubexpression(1.0 + x0)
-x0m1 = p.CommonSubexpression(1.0 - x0)
-x1p1 = p.CommonSubexpression(1.0 + x1)
-x1m1 = p.CommonSubexpression(1.0 - x1)
+x0p1 = p.CommonSubexpression(1.0 + x0, prefix="x0p1")
+x0m1 = p.CommonSubexpression(1.0 - x0, prefix="x0m1")
+x1p1 = p.CommonSubexpression(1.0 + x1, prefix="x1p1")
+x1m1 = p.CommonSubexpression(1.0 - x1, prefix="x1m1")
 
 f0 = v00 * x0m1 * x1m1 + \
      v10 * x0p1 * x1m1 + \
@@ -45,10 +45,10 @@ f1 = v01 * x0m1 * x1m1 + \
      v31 * x0p1 * x1p1
 
 
-J00 = p.CommonSubexpression(DM(x0)(f0))
-J01 = p.CommonSubexpression(DM(x1)(f0))
-J10 = p.CommonSubexpression(DM(x0)(f1))
-J11 = p.CommonSubexpression(DM(x1)(f1))
+J00 = p.CommonSubexpression(DM(x0)(f0), prefix="J00")
+J01 = p.CommonSubexpression(DM(x1)(f0), prefix="J01")
+J10 = p.CommonSubexpression(DM(x0)(f1), prefix="J10")
+J11 = p.CommonSubexpression(DM(x1)(f1), prefix="J11")
 
 
 L00 = 1.0
@@ -62,8 +62,8 @@ U11 = J11 - (J01*J01)/J00
 b0 = -1.0 * f0
 b1 = -1.0 * f1
 
-a1 = p.CommonSubexpression((1.0/U11) * (-L10 * b0 + b1))
-a0 = p.CommonSubexpression((1.0/U00)*(b0 - U01*a1))
+a1 = p.CommonSubexpression((1.0/U11) * (-L10 * b0 + b1), prefix="a1")
+a0 = p.CommonSubexpression((1.0/U00)*(b0 - U01*a1), prefix="a0")
 
 xnp10 = a0 + x0;
 xnp11 = a1 + x1;
