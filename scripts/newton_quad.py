@@ -11,9 +11,8 @@ import ast
 import pymbolic as pmbl
 import pymbolic.primitives as p
 
-
+from pymbolic.mapper.c_code import CCodeMapper as CCM
 from pymbolic.mapper.differentiator import DifferentiationMapper as DM
-print()
 
 
 x0 = p.Variable("x0")
@@ -28,14 +27,22 @@ v21 = p.Variable("v21")
 v30 = p.Variable("v30")
 v31 = p.Variable("v31")
 
-f0 = v00 * (1.0 - x0) * (1.0 - x1) + \
-     v10 * (1.0 + x0) * (1.0 - x1) + \
-     v20 * (1.0 - x0) * (1.0 + x1) + \
-     v30 * (1.0 + x0) * (1.0 + x1)
-f1 = v01 * (1.0 - x0) * (1.0 - x1) + \
-     v11 * (1.0 + x0) * (1.0 - x1) + \
-     v21 * (1.0 - x0) * (1.0 + x1) + \
-     v31 * (1.0 + x0) * (1.0 + x1)
+
+
+x0p1 = p.CommonSubexpression(1.0 + x0)
+x0m1 = p.CommonSubexpression(1.0 - x0)
+x1p1 = p.CommonSubexpression(1.0 + x1)
+x1m1 = p.CommonSubexpression(1.0 - x1)
+
+f0 = v00 * x0m1 * x1m1 + \
+     v10 * x0p1 * x1m1 + \
+     v20 * x0m1 * x1p1 + \
+     v30 * x0p1 * x1p1
+
+f1 = v01 * x0m1 * x1m1 + \
+     v11 * x0p1 * x1m1 + \
+     v21 * x0m1 * x1p1 + \
+     v31 * x0p1 * x1p1
 
 
 J00 = p.CommonSubexpression(DM(x0)(f0))
@@ -52,16 +59,22 @@ U00 = J00
 U01 = J01
 U11 = J11 - (J01*J01)/J00
 
-b0 = p.Variable("b0")
-b1 = p.Variable("b1")
+b0 = -1.0 * f0
+b1 = -1.0 * f1
 
 a1 = p.CommonSubexpression((1.0/U11) * (-L10 * b0 + b1))
 a0 = p.CommonSubexpression((1.0/U00)*(b0 - U01*a1))
 
-print(a0)
-print(a1)
+xnp10 = a0 + x0;
+xnp11 = a1 + x1;
 
+ccm = CCM()
+r0 = ccm(xnp10)
+r1 = ccm(xnp11)
 
+for name, value in ccm.cse_name_list:
+    print("const double %s = %s;" % (name, value))
 
-
+print("x0 = {};".format(r0))
+print("x1 = {};".format(r1))
 
